@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formateador de Markdown</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            min-height: 70vh;
+        }
+
+        .input-section, .output-section {
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-section {
+            background: #f8f9fa;
+            border-right: 2px solid #e9ecef;
+        }
+
+        .section-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        #markdownInput {
+            flex: 1;
+            padding: 20px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            transition: all 0.3s ease;
+            background: white;
+            line-height: 1.6;
+        }
+
+        #markdownInput:focus {
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+        }
+
+        #markdownInput::placeholder {
+            color: #999;
+            font-style: italic;
+        }
+
+        .output-section {
+            background: white;
+        }
+
+        #preview {
+            flex: 1;
+            padding: 20px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            overflow-y: auto;
+            background: #fafafa;
+            line-height: 1.7;
+        }
+
+        .button-container {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .status {
+            margin-top: 15px;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-weight: 500;
+            text-align: center;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .status.show {
+            opacity: 1;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        /* Estilos para el contenido renderizado */
+        #preview h1, #preview h2, #preview h3, #preview h4, #preview h5, #preview h6 {
+            color: #2c3e50;
+            margin: 20px 0 10px 0;
+            line-height: 1.4;
+        }
+
+        #preview h1 { font-size: 2em; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        #preview h2 { font-size: 1.6em; }
+        #preview h3 { font-size: 1.4em; }
+
+        #preview p {
+            margin: 10px 0;
+            color: #333;
+        }
+
+        #preview code {
+            background: #f1f1f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #d63384;
+        }
+
+        #preview pre {
+            background: #f8f8f8;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            border-left: 4px solid #4CAF50;
+            margin: 15px 0;
+        }
+
+        #preview pre code {
+            background: none;
+            padding: 0;
+            color: #333;
+        }
+
+        #preview blockquote {
+            border-left: 4px solid #ddd;
+            padding-left: 20px;
+            margin: 20px 0;
+            color: #666;
+            font-style: italic;
+        }
+
+        #preview ul, #preview ol {
+            padding-left: 25px;
+            margin: 15px 0;
+        }
+
+        #preview li {
+            margin: 5px 0;
+        }
+
+        #preview table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        #preview th, #preview td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        #preview th {
+            background: #f5f5f5;
+            font-weight: 600;
+        }
+
+        #preview a {
+            color: #4CAF50;
+            text-decoration: none;
+        }
+
+        #preview a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .input-section {
+                border-right: none;
+                border-bottom: 2px solid #e9ecef;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .container {
+                margin: 10px;
+            }
+        }
+
+        .word-count {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 10px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Formateador de Markdown</h1>
+            <p>Pega tu markdown de Claude y ve el resultado formateado al instante</p>
+        </div>
+
+        <div class="main-content">
+            <div class="input-section">
+                <h2 class="section-title">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M14,17H7V15H14M17,13H7V11H17M17,9H7V7H17M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21.18,4.86 20.82,3.95 20.11,3.74L19,3Z"/>
+                    </svg>
+                    Markdown Original
+                </h2>
+                <textarea 
+                    id="markdownInput" 
+                    placeholder="Pega aquí el markdown copiado de tu artifact de Claude...
+
+Ejemplo:
+# Mi Título
+Este es un **texto en negrita** y este en *cursiva*.
+
+## Subtítulo
+- Lista item 1
+- Lista item 2
+
+```javascript
+console.log('Hola mundo');
+```
+
+> Esta es una cita importante
+
+| Columna 1 | Columna 2 |
+|-----------|-----------|
+| Dato 1    | Dato 2    |"
+                ></textarea>
+                <div class="word-count" id="wordCount">0 caracteres</div>
+                <div class="button-container">
+                    <button class="btn btn-danger" onclick="clearInput()">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+                        </svg>
+                        Limpiar
+                    </button>
+                    <button class="btn btn-secondary" onclick="loadExample()">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                        </svg>
+                        Ejemplo
+                    </button>
+                </div>
+            </div>
+
+            <div class="output-section">
+                <h2 class="section-title">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,16.5L6.5,12L7.91,10.59L11,13.67L16.59,8.09L18,9.5L11,16.5Z"/>
+                    </svg>
+                    Vista Previa Formateada
+                </h2>
+                <div id="preview">
+                    <p style="color: #999; text-align: center; margin-top: 50px;">
+                        <svg style="width: 48px; height: 48px; margin-bottom: 15px; opacity: 0.5;" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M14,17H7V15H14M17,13H7V11H17M17,9H7V7H17M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21.18,4.86 20.82,3.95 20.11,3.74L19,3Z"/>
+                        </svg><br>
+                        El contenido formateado aparecerá aquí cuando pegues markdown
+                    </p>
+                </div>
+                <div class="button-container">
+                    <button class="btn btn-primary" onclick="copyAsPlainText()">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/>
+                        </svg>
+                        📱 Copiar para WhatsApp
+                    </button>
+                    <button class="btn btn-secondary" onclick="copyFormatted()">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M5,3H19A2,2 0 0,1 21,5V19A2,2 0 0,1 19,21H5A2,2 0 0,1 3,19V5A2,2 0 0,1 5,3M5,5V19H19V5H5Z"/>
+                        </svg>
+                        Copiar HTML
+                    </button>
+                    <button class="btn btn-danger" onclick="copyMarkdown()">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M14,17H7V15H14M17,13H7V11H17M17,9H7V7H17M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21.18,4.86 20.82,3.95 20.11,3.74L19,3Z"/>
+                        </svg>
+                        Copiar Markdown
+                    </button>
+                </div>
+                <div class="status" id="statusMessage"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const markdownInput = document.getElementById('markdownInput');
+        const preview = document.getElementById('preview');
+        const statusMessage = document.getElementById('statusMessage');
+        const wordCount = document.getElementById('wordCount');
+
+        // Configurar marked para mejor renderizado
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+            sanitize: false
+        });
+
+        function updatePreview() {
+            const markdownText = markdownInput.value;
+            
+            if (markdownText.trim() === '') {
+                preview.innerHTML = `
+                    <p style="color: #999; text-align: center; margin-top: 50px;">
+                        <svg style="width: 48px; height: 48px; margin-bottom: 15px; opacity: 0.5;" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M14,17H7V15H14M17,13H7V11H17M17,9H7V7H17M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21.18,4.86 20.82,3.95 20.11,3.74L19,3Z"/>
+                        </svg><br>
+                        El contenido formateado aparecerá aquí cuando pegues markdown
+                    </p>
+                `;
+                return;
+            }
+
+            try {
+                const html = marked.parse(markdownText);
+                preview.innerHTML = html;
+            } catch (error) {
+                preview.innerHTML = `<p style="color: #d32f2f;">Error al procesar el markdown: ${error.message}</p>`;
+            }
+            
+            // Actualizar contador de palabras
+            wordCount.textContent = `${markdownText.length} caracteres`;
+        }
+
+        function showStatus(message, type = 'success') {
+            statusMessage.textContent = message;
+            statusMessage.className = `status show ${type}`;
+            
+            setTimeout(() => {
+                statusMessage.classList.remove('show');
+            }, 3000);
+        }
+
+        function markdownToPlainText(markdownText) {
+            if (!markdownText || markdownText.trim() === '') return '';
+            
+            let text = markdownText;
+            
+            // Procesar títulos
+            text = text.replace(/^# (.*$)/gm, '🔥 $1\n═══════════════════════════════════════');
+            text = text.replace(/^## (.*$)/gm, '\n📌 $1\n─────────────────────────────────────');
+            text = text.replace(/^### (.*$)/gm, '\n▶️ $1');
+            text = text.replace(/^#### (.*$)/gm, '\n🔸 $1');
+            text = text.replace(/^##### (.*$)/gm, '\n• $1');
+            text = text.replace(/^###### (.*$)/gm, '\n  › $1');
+            
+            // Procesar texto en negrita y cursiva
+            text = text.replace(/\*\*\*(.*?)\*\*\*/g, '*$1*'); // Negrita + cursiva
+            text = text.replace(/\*\*(.*?)\*\*/g, '*$1*'); // Negrita
+            text = text.replace(/\*(.*?)\*/g, '_$1_'); // Cursiva
+            text = text.replace(/__(.*?)__/g, '*$1*'); // Negrita alternativa
+            text = text.replace(/_(.*?)_/g, '_$1_'); // Cursiva alternativa
+            
+            // Procesar código inline
+            text = text.replace(/`([^`]+)`/g, '⌨️ $1');
+            
+            // Procesar bloques de código
+            text = text.replace(/```[\s\S]*?```/g, (match) => {
+                const lines = match.split('\n');
+                const language = lines[0].replace('```', '') || 'código';
+                const code = lines.slice(1, -1).join('\n');
+                return `\n📋 ${language.toUpperCase()}:\n┌─────────────────────────────────────\n${code.split('\n').map(line => `│ ${line}`).join('\n')}\n└─────────────────────────────────────\n`;
+            });
+            
+            // Procesar citas
+            text = text.replace(/^> (.*$)/gm, '💬 "$1"');
+            
+            // Procesar listas
+            text = text.replace(/^[\s]*[\*\-\+] (.*$)/gm, '  ✓ $1');
+            text = text.replace(/^[\s]*\d+\. (.*$)/gm, (match, content, offset, string) => {
+                const lineStart = string.lastIndexOf('\n', offset) + 1;
+                const currentLine = string.substring(lineStart, offset);
+                const indent = currentLine.match(/^\s*/)[0];
+                const number = match.match(/\d+/)[0];
+                return `${indent}${number}. $1`;
+            });
+            
+            // Procesar enlaces
+            text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 → $2');
+            
+            // Procesar tablas (simplificado)
+            text = text.replace(/\|(.+)\|/g, (match, content) => {
+                if (content.includes('---')) {
+                    return '├─────────────────────────────────────';
+                }
+                const cells = content.split('|').map(cell => cell.trim()).filter(cell => cell);
+                return '│ ' + cells.join(' │ ') + ' │';
+            });
+            
+            // Procesar separadores
+            text = text.replace(/^[\s]*[-*_]{3,}[\s]*$/gm, '\n═══════════════════════════════════════\n');
+            
+            // Limpiar líneas vacías múltiples
+            text = text.replace(/\n{3,}/g, '\n\n');
+            
+            // Limpiar espacios al final de líneas
+            text = text.replace(/[ \t]+$/gm, '');
+            
+            return text.trim();
+        }
+
+        async function copyAsPlainText() {
+            try {
+                const markdownText = markdownInput.value;
+                if (markdownText.trim() === '') {
+                    showStatus('No hay contenido para copiar', 'error');
+                    return;
+                }
+                
+                const plainText = markdownToPlainText(markdownText);
+                await navigator.clipboard.writeText(plainText);
+                showStatus('¡Texto formateado para WhatsApp copiado!');
+            } catch (error) {
+                const plainText = markdownToPlainText(markdownInput.value);
+                const textArea = document.createElement('textarea');
+                textArea.value = plainText;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showStatus('¡Texto formateado para WhatsApp copiado!');
+            }
+        }
+
+        async function copyFormatted() {
+            try {
+                const htmlContent = preview.innerHTML;
+                if (htmlContent.includes('aparecerá aquí cuando')) {
+                    showStatus('No hay contenido para copiar', 'error');
+                    return;
+                }
+                
+                await navigator.clipboard.writeText(htmlContent);
+                showStatus('¡HTML copiado al portapapeles!');
+            } catch (error) {
+                // Fallback para navegadores que no soportan clipboard API
+                const textArea = document.createElement('textarea');
+                textArea.value = preview.innerHTML;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showStatus('¡HTML copiado al portapapeles!');
+            }
+        }
+
+        async function copyMarkdown() {
+            try {
+                const markdownText = markdownInput.value;
+                if (markdownText.trim() === '') {
+                    showStatus('No hay markdown para copiar', 'error');
+                    return;
+                }
+                
+                await navigator.clipboard.writeText(markdownText);
+                showStatus('¡Markdown copiado al portapapeles!');
+            } catch (error) {
+                const textArea = document.createElement('textarea');
+                textArea.value = markdownInput.value;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showStatus('¡Markdown copiado al portapapeles!');
+            }
+        }
+
+        function clearInput() {
+            if (markdownInput.value.trim() !== '' && !confirm('¿Estás seguro de que quieres limpiar todo el contenido?')) {
+                return;
+            }
+            markdownInput.value = '';
+            updatePreview();
+            markdownInput.focus();
+            showStatus('Contenido limpiado');
+        }
+
+        function loadExample() {
+            const exampleMarkdown = `# 🚀 Mi Proyecto Increíble
+
+## Descripción
+Este es un **proyecto fantástico** que demuestra las capacidades del *markdown*.
+
+### Características principales
+- ✅ Fácil de usar
+- ✅ Renderizado en tiempo real
+- ✅ Soporte completo para markdown
+- ✅ Interfaz moderna
+
+### Ejemplo de código
+\`\`\`javascript
+function saludar(nombre) {
+    console.log(\`¡Hola, \${nombre}!\`);
+    return \`Bienvenido/a, \${nombre}\`;
+}
+
+saludar("Usuario");
+\`\`\`
+
+### Cita importante
+> "El conocimiento es poder, pero el conocimiento compartido es superpoder." - Anónimo
+
+### Lista numerada
+1. Primero esto
+2. Luego esto otro
+3. Y finalmente esto
+
+### Tabla de datos
+| Tecnología | Puntuación | Estado |
+|------------|------------|---------|
+| HTML5      | ⭐⭐⭐⭐⭐     | ✅ Activo |
+| CSS3       | ⭐⭐⭐⭐⭐     | ✅ Activo |
+| JavaScript | ⭐⭐⭐⭐⭐     | ✅ Activo |
+
+### Enlaces útiles
+- [Documentación de Markdown](https://www.markdownguide.org/)
+- [Más información sobre HTML](https://developer.mozilla.org/)
+
+---
+
+*¡Esto es solo un ejemplo de lo que puedes hacer!* 🎉
+
+**Tip:** Usa el botón "📱 Copiar para WhatsApp" para obtener texto formateado compatible con apps de mensajería.`;
+
+            markdownInput.value = exampleMarkdown;
+            updatePreview();
+            showStatus('Ejemplo cargado - ¡Prueba el botón de WhatsApp!');
+        }
+
+        // Event listeners
+        markdownInput.addEventListener('input', updatePreview);
+        markdownInput.addEventListener('paste', () => {
+            setTimeout(updatePreview, 10);
+        });
+
+        // Cargar contenido inicial
+        updatePreview();
+
+        // Auto-focus en el textarea
+        markdownInput.focus();
+
+        // Atajo de teclado para copiar (Ctrl+Shift+C)
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+                e.preventDefault();
+                copyAsPlainText();
+            }
+        });
+
+        // Detectar pegado automáticamente
+        markdownInput.addEventListener('paste', () => {
+            setTimeout(() => {
+                if (markdownInput.value.trim() !== '') {
+                    showStatus('¡Markdown detectado! Renderizando vista previa...');
+                }
+            }, 100);
+        });
+    </script>
+</body>
+</html>
